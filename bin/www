@@ -1,0 +1,137 @@
+#!/usr/bin/env node
+
+/**
+ * Module dependencies.
+ */
+global.users={};
+var app = require('../app');
+var debug = require('debug')('n-chat:server');
+var http = require('http');
+
+
+
+/**
+ * Get port from environment and store in Express.
+ */
+
+var port = normalizePort(process.env.PORT || '3000');
+app.set('port', port);
+
+/**
+ * Create HTTP server.
+ */
+
+var server = http.createServer(app);
+var io=require('socket.io').listen(server);
+
+/**
+ * Listen on provided port, on all network interfaces.
+ */
+
+server.listen(port);
+server.on('error', onError);
+server.on('listening', onListening);
+
+io.sockets.on('connection',function(socket){
+    //????
+    socket.on('online', function (data) {
+        //?????????? socket ??????????? socket ?????????
+        socket.name = data.user;
+        //if (users == undefined) var users={};
+        //users ?????????????????
+        if (!users[data.user]) {
+            users[data.user] = data.user;
+        }
+        //??????????????
+        io.sockets.emit('online', {users: users, user: data.user});
+    });
+    //????
+    socket.on('say', function (data) {
+        if (data.to == 'all') {
+            //????????????????
+            socket.broadcast.emit('say', data);
+        } else {
+            //??????????????
+            //???????
+            Object.keys(io.sockets.sockets).forEach(function(id){
+                if (io.sockets.sockets[id].name == data.to) {
+                    //????????? say ??
+                    //io.socket.sockets[id].emit('say', data);
+                    io.to(id).emit('say',data);
+                }
+            });
+        }
+    });
+    //????
+    socket.on('disconnect', function() {
+        //? users ??????????
+        if (users[socket.name]) {
+            //? users ?????????
+            delete users[socket.name];
+            //????????????????
+            socket.broadcast.emit('offline', {users: users, user: socket.name});
+        }
+    });
+});
+
+
+/**
+ * Normalize a port into a number, string, or false.
+ */
+
+function normalizePort(val) {
+  var port = parseInt(val, 10);
+
+  if (isNaN(port)) {
+    // named pipe
+    return val;
+  }
+
+  if (port >= 0) {
+    // port number
+    return port;
+  }
+
+  return false;
+}
+
+/**
+ * Event listener for HTTP server "error" event.
+ */
+
+function onError(error) {
+  if (error.syscall !== 'listen') {
+    throw error;
+  }
+
+  var bind = typeof port === 'string'
+    ? 'Pipe ' + port
+    : 'Port ' + port;
+
+  // handle specific listen errors with friendly messages
+  switch (error.code) {
+    case 'EACCES':
+      console.error(bind + ' requires elevated privileges');
+      process.exit(1);
+      break;
+    case 'EADDRINUSE':
+      console.error(bind + ' is already in use');
+      process.exit(1);
+      break;
+    default:
+      throw error;
+  }
+}
+
+/**
+ * Event listener for HTTP server "listening" event.
+ */
+
+function onListening() {
+  var addr = server.address();
+  var bind = typeof addr === 'string'
+    ? 'pipe ' + addr
+    : 'port ' + addr.port;
+  debug('Listening on ' + bind);
+  console.log('Listening on lcoalhost:3000');
+}
